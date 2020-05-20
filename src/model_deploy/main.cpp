@@ -1,8 +1,16 @@
+#include "mbed.h"
+
+#include <cmath>
+
+#include "DA7212.h"
+
 #include "accelerometer_handler.h"
 
 #include "config.h"
 
 #include "magic_wand_model_data.h"
+
+#include "uLCD_4DGL.h"
 
 
 #include "tensorflow/lite/c/common.h"
@@ -19,6 +27,145 @@
 
 #include "tensorflow/lite/version.h"
 
+#define bufferLength (32)
+
+#define signalLength (196)
+
+DA7212 audio;
+
+Serial pc(USBTX, USBRX);
+
+InterruptIn sw2(SW2);///////////////
+
+InterruptIn sw3(SW3);
+
+DigitalOut led(LED1);////////////////
+DigitalOut led2(LED2);////////////////
+DigitalOut led3(LED3);
+
+uLCD_4DGL uLCD(D1, D0, D2);
+
+// The gesture index of the prediction
+
+volatile int gesture_index;
+
+volatile float signal0[signalLength];
+
+volatile char serialInBuffer[bufferLength];
+
+volatile int serialCount = 0;
+
+volatile int state = 3, modesel, modenum, songsel, songnum = 1;
+
+volatile int16_t waveform[kAudioTxBufferSize];
+
+Thread t1(osPriorityNormal, 100 * 1024 /*120K stack size*/);
+Thread t2;
+Thread t3;
+Thread t4;
+Thread t5;
+Thread t6;
+
+EventQueue queue2(32 * EVENTS_EVENT_SIZE);
+EventQueue queue3(32 * EVENTS_EVENT_SIZE);
+EventQueue queue4(32 * EVENTS_EVENT_SIZE);
+EventQueue queue5(32 * EVENTS_EVENT_SIZE);
+EventQueue queue6(32 * EVENTS_EVENT_SIZE);
+
+
+volatile int song0[42];
+
+volatile int song1[24];
+
+volatile int song2[32];
+
+volatile int noteLength0[42];
+
+volatile int noteLength1[24];
+
+volatile int noteLength2[32];
+
+void loadSignal(void)
+
+{
+
+  led3 = 0;
+
+  int i = 0;
+
+  serialCount = 0;
+
+  audio.spk.pause();
+
+  while(i < signalLength)
+
+  {
+
+    if(pc.readable())
+
+    {
+
+      serialInBuffer[serialCount] = pc.getc();
+
+      serialCount++;
+
+      if(serialCount == 5)
+
+      {
+
+        serialInBuffer[serialCount] = '\0';
+
+        signal0[i] = (float) atof(serialInBuffer);
+
+        serialCount = 0;
+
+        i++;
+
+      }
+
+    }
+
+  }
+
+  led3 = 1;
+
+  for(int i=0; i<42; i++) {
+    song0[i] = (int) (signal0[i]*1000);
+  }
+  for(int i=0; i<42; i++) {
+    noteLength0[i] = (int) (signal0[i+42]*10);
+  }
+  for(int i=0; i<24; i++) {
+    song1[i] = (int) (signal0[i+84]*1000);
+  }
+  for(int i=0; i<24; i++) {
+    noteLength1[i] = (int) (signal0[i+108]*10);
+  }
+  for(int i=0; i<32; i++) {
+    song2[i] = (int) (signal0[i+132]*1000);
+  }
+  for(int i=0; i<32; i++) {
+    noteLength2[i] = (int) (signal0[i+164]*10);
+  }
+
+  //led2 = 0;
+
+}
+
+void playNote(int freq)
+{
+
+  for(int i = 0; i < kAudioTxBufferSize; i++)
+
+  {
+
+    waveform[i] = (int16_t) (sin((double)i * 2. * M_PI/(double) (kAudioSampleFrequency / freq)) * ((1<<16) - 1));
+
+  }
+
+  audio.spk.play(waveform, kAudioTxBufferSize);
+
+}
 
 // Return the result of the last prediction
 
@@ -93,9 +240,15 @@ int PredictGesture(float* output) {
 
 }
 
+void dnn() {
 
-int main(int argc, char* argv[]) {
+      /*while (true) {
 
+        led = !led;
+
+        wait(2);
+
+    }*/
 
   // Create an area of memory to use for input, output, and intermediate arrays.
 
@@ -115,16 +268,13 @@ int main(int argc, char* argv[]) {
   bool got_data = false;
 
 
-  // The gesture index of the prediction
-
-  int gesture_index;
-
-
   // Set up logging.
 
   static tflite::MicroErrorReporter micro_error_reporter;
 
   tflite::ErrorReporter* error_reporter = &micro_error_reporter;
+
+  error_reporter->Report("Set up xxxxxxxxxx...\n");///////////////
 
 
   // Map the model into a usable data structure. This doesn't involve any
@@ -143,7 +293,7 @@ int main(int argc, char* argv[]) {
 
         model->version(), TFLITE_SCHEMA_VERSION);
 
-    return -1;
+    return;
 
   }
 
@@ -214,7 +364,7 @@ int main(int argc, char* argv[]) {
 
     error_reporter->Report("Bad input tensor parameters in model");
 
-    return -1;
+    return;
 
   }
 
@@ -228,16 +378,14 @@ int main(int argc, char* argv[]) {
 
     error_reporter->Report("Set up failed\n");
 
-    return -1;
+    return;
 
   }
 
-
   error_reporter->Report("Set up successful...\n");
 
-
   while (true) {
-
+    //button.rise(&ISR1);////////////
 
     // Attempt to read new data from the accelerometer
 
@@ -291,5 +439,230 @@ int main(int argc, char* argv[]) {
     }
 
   }
+}
+
+void isr3_1() {
+  modesel = 0;
+}
+
+void isr3_2() {
+  songsel = 0;
+}
+
+void isr2() {
+
+  //EventQueue queue(32 * EVENTS_EVENT_SIZE);
+
+  led = 0;//////////////
+  state = 1;
+  modenum = 1;
+  modesel = 1;
+  sw3.rise(isr3_1);
+
+  while(modesel){
+    if(gesture_index == 0 && modenum > 0){
+      modenum --;
+      wait(0.5);
+    }
+    else if(gesture_index == 0 && modenum == 0){
+      modenum = 2;
+      wait(0.5);
+    }
+    else if(gesture_index == 1 && modenum < 2){
+      modenum ++;
+      wait(0.5);
+    }
+    else if(gesture_index == 1 && modenum == 2){
+      modenum = 0;
+      wait(0.5);
+    }
+  }
+
+  led = 1;
+
+  if(modenum == 0){
+    if(songnum > 0)
+      songnum--;
+    else if(songnum == 0)
+      songnum = 2;
+    state = 3;
+    return;
+  }
+  else if(modenum == 2){
+    if(songnum < 2)
+      songnum++;
+    else if(songnum == 2)
+      songnum = 0;
+    state = 3;
+    return;
+  }
+
+  led2 = 0;///////
+  state = 2;
+  songnum = 1;
+  songsel = 1;
+  sw3.rise(isr3_2);
+  
+  while(songsel){
+    if(gesture_index == 0 && songnum > 0){
+      songnum --;
+      wait(0.5);
+    }
+    else if(gesture_index == 0 && songnum == 0){
+      songnum = 2;
+      wait(0.5);
+    }
+    else if(gesture_index == 1 && songnum < 2){
+      songnum ++;
+      wait(0.5);
+    }
+    else if(gesture_index == 1 && songnum == 2){
+      songnum = 0;
+      wait(0.5);
+    }
+  }
+
+  led2 = 1;//////////
+  state = 3;
+}
+
+void player()
+{
+  t4.start(callback(&queue4, &EventQueue::dispatch_forever));
+  while(1) {
+    for(int i = 0; state == 3 && i < 42; i++)
+    {
+      int length;
+      if(songnum == 0)
+        length = noteLength0[i];
+      else if(songnum == 1)
+        length = noteLength1[i];
+      else if(songnum == 2)
+        length = noteLength2[i];
+      
+      while(length--)
+      {
+        // the loop below will play the note for the duration of 1s
+        for(int j = 0; state == 3 && j < kAudioSampleFrequency / kAudioTxBufferSize; ++j)
+        {
+          if(songnum == 0)
+            queue4.call(playNote, song0[i]);
+          else if(songnum == 1)
+            queue4.call(playNote, song1[i]);
+          else if(songnum == 2)
+            queue4.call(playNote, song2[i]);
+        }
+        /*if(length < 1)*/ wait(1.0);
+        audio.spk.pause();
+      }
+      //if(i == 41) i = -1;
+    }
+    audio.spk.pause();
+  }
+  /*else if(songnum == 1) {
+    for(int i = 0; state == 3 && i < 42; i++)
+    {
+      int length = noteLength1[i];
+      while(length--)
+      {
+        // the loop below will play the note for the duration of 1s
+        for(int j = 0; j < kAudioSampleFrequency / kAudioTxBufferSize; ++j)
+        {
+          queue4.call(playNote, song1[i]);
+        }
+        if(length < 1) wait(1.0);
+        audio.spk.pause();
+      }
+      //if(i == 41) i = -1;
+    }
+    audio.spk.pause();
+  }
+  else if(songnum == 2) {
+    for(int i = 0; state == 3 && i < 42; i++)
+    {
+      int length = noteLength2[i];
+      while(length--)
+      {
+        // the loop below will play the note for the duration of 1s
+        for(int j = 0; j < kAudioSampleFrequency / kAudioTxBufferSize; ++j)
+        {
+          queue4.call(playNote, song2[i]);
+        }
+        if(length < 1) wait(1.0);
+        audio.spk.pause();
+      }
+      //if(i == 41) i = -1;
+    }
+    audio.spk.pause();
+  }*/
+}
+
+void display()
+{
+  while(1) {
+    uLCD.cls();
+    uLCD.printf("\nstate=%d\n", state);
+    if(state == 3)
+      uLCD.printf("\nSONG=%d\n", songnum);
+    if(state == 1 && modenum == 0){
+      uLCD.printf("\n      *   \n");
+      uLCD.printf("\n    *     \n");
+      uLCD.printf("\n  *       \n");
+      uLCD.printf("\n    *     \n");
+      uLCD.printf("\n      *   \n");
+    }
+    else if(state == 1 && modenum == 1)
+      uLCD.printf("\nSONG SELECTION\n");
+    else if(state == 1 && modenum == 2){
+      uLCD.printf("\n  *       \n");
+      uLCD.printf("\n    *     \n");
+      uLCD.printf("\n      *   \n");
+      uLCD.printf("\n    *     \n");
+      uLCD.printf("\n  *       \n");
+    }
+
+    if(state == 2 && songnum == 0){
+      uLCD.printf("\nSELECT SONG 0\n");
+    }
+    else if(state == 2 && songnum == 1)
+      uLCD.printf("\nSELECT SONG 1\n");
+    else if(state == 2 && songnum == 2){
+      uLCD.printf("\nSELECT SONG 2\n");
+    }
+    
+    uLCD.printf("\nsong0[0]=%d\n", song0[0]);
+    uLCD.printf("\nLength2[31];=%d\n", noteLength2[31]);
+    wait(0.5);
+  }
+}
+
+void loadSignalHandler(void) {queue6.call(loadSignal);}
+
+int main() {
+
+  led = 1;//////////
+  led2 = 1;////////////
+
+  t6.start(callback(&queue6, &EventQueue::dispatch_forever));
+
+  queue6.call(loadSignalHandler);
+
+  t1.start(dnn);
+
+  t2.start(callback(&queue2, &EventQueue::dispatch_forever));
+
+  t3.start(callback(&queue3, &EventQueue::dispatch_forever));
+
+  t5.start(callback(&queue5, &EventQueue::dispatch_forever));
+
+  sw2.rise(queue2.event(isr2));
+
+  sw3.rise(queue3.event(player));
+
+  //sw2.rise(queue3.event(player));
+  //queue3.call(player);
+
+  queue5.call(display);
+
 
 }
