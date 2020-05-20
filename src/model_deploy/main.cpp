@@ -35,12 +35,12 @@ DA7212 audio;
 
 Serial pc(USBTX, USBRX);
 
-InterruptIn sw2(SW2);///////////////
+InterruptIn sw2(SW2);
 
 InterruptIn sw3(SW3);
 
-DigitalOut led(LED1);////////////////
-DigitalOut led2(LED2);////////////////
+DigitalOut led(LED1);
+DigitalOut led2(LED2);
 DigitalOut led3(LED3);
 
 uLCD_4DGL uLCD(D1, D0, D2);
@@ -148,8 +148,6 @@ void loadSignal(void)
     noteLength2[i] = (int) (signal0[i+164]*10);
   }
 
-  //led2 = 0;
-
 }
 
 void playNote(int freq)
@@ -241,14 +239,6 @@ int PredictGesture(float* output) {
 }
 
 void dnn() {
-
-      /*while (true) {
-
-        led = !led;
-
-        wait(2);
-
-    }*/
 
   // Create an area of memory to use for input, output, and intermediate arrays.
 
@@ -385,7 +375,6 @@ void dnn() {
   error_reporter->Report("Set up successful...\n");
 
   while (true) {
-    //button.rise(&ISR1);////////////
 
     // Attempt to read new data from the accelerometer
 
@@ -451,9 +440,7 @@ void isr3_2() {
 
 void isr2() {
 
-  //EventQueue queue(32 * EVENTS_EVENT_SIZE);
-
-  led = 0;//////////////
+  led = 0;
   state = 1;
   modenum = 1;
   modesel = 1;
@@ -497,7 +484,7 @@ void isr2() {
     return;
   }
 
-  led2 = 0;///////
+  led2 = 0;
   state = 2;
   songnum = 1;
   songsel = 1;
@@ -522,7 +509,7 @@ void isr2() {
     }
   }
 
-  led2 = 1;//////////
+  led2 = 1;
   state = 3;
 }
 
@@ -552,49 +539,12 @@ void player()
           else if(songnum == 2)
             queue4.call(playNote, song2[i]);
         }
-        /*if(length < 1)*/ wait(1.0);
+        wait(1.0);
         audio.spk.pause();
       }
-      //if(i == 41) i = -1;
     }
     audio.spk.pause();
   }
-  /*else if(songnum == 1) {
-    for(int i = 0; state == 3 && i < 42; i++)
-    {
-      int length = noteLength1[i];
-      while(length--)
-      {
-        // the loop below will play the note for the duration of 1s
-        for(int j = 0; j < kAudioSampleFrequency / kAudioTxBufferSize; ++j)
-        {
-          queue4.call(playNote, song1[i]);
-        }
-        if(length < 1) wait(1.0);
-        audio.spk.pause();
-      }
-      //if(i == 41) i = -1;
-    }
-    audio.spk.pause();
-  }
-  else if(songnum == 2) {
-    for(int i = 0; state == 3 && i < 42; i++)
-    {
-      int length = noteLength2[i];
-      while(length--)
-      {
-        // the loop below will play the note for the duration of 1s
-        for(int j = 0; j < kAudioSampleFrequency / kAudioTxBufferSize; ++j)
-        {
-          queue4.call(playNote, song2[i]);
-        }
-        if(length < 1) wait(1.0);
-        audio.spk.pause();
-      }
-      //if(i == 41) i = -1;
-    }
-    audio.spk.pause();
-  }*/
 }
 
 void display()
@@ -640,8 +590,8 @@ void loadSignalHandler(void) {queue6.call(loadSignal);}
 
 int main() {
 
-  led = 1;//////////
-  led2 = 1;////////////
+  led = 1;
+  led2 = 1;
 
   t6.start(callback(&queue6, &EventQueue::dispatch_forever));
 
@@ -658,9 +608,6 @@ int main() {
   sw2.rise(queue2.event(isr2));
 
   sw3.rise(queue3.event(player));
-
-  //sw2.rise(queue3.event(player));
-  //queue3.call(player);
 
   queue5.call(display);
 

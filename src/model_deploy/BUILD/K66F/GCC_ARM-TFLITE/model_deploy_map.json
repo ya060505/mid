@@ -13,10 +13,10 @@
     {
         "module": "BUILD/K66F",
         "size": {
-            ".text": 46821,
+            ".text": 46820,
             ".data": 337,
             ".bss": 9083,
-            ".text-delta": 0,
+            ".text-delta": -1,
             ".data-delta": 0,
             ".bss-delta": 0
         }
@@ -24,10 +24,10 @@
     {
         "module": "[fill]",
         "size": {
-            ".text": 321,
+            ".text": 322,
             ".data": 17,
             ".bss": 50,
-            ".text-delta": 0,
+            ".text-delta": 1,
             ".data-delta": 0,
             ".bss-delta": 0
         }
