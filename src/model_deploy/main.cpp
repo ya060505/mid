@@ -631,7 +631,7 @@ void display()
     }
     
     uLCD.printf("\nsong0[0]=%d\n", song0[0]);
-    uLCD.printf("\nLength2[31];=%d\n", noteLength2[31]);
+    uLCD.printf("\nLength2[31]=%d\n", noteLength2[31]);
     wait(0.5);
   }
 }

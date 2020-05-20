@@ -5,7 +5,7 @@ import serial
 import time
 
 
-waitTime = 0.1
+waitTime = 0.2
 
 
 song1 = [0.261, 0.261, 0.392, 0.392, 0.440, 0.440, 0.392,
